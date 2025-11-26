@@ -19,19 +19,19 @@ describe("Dog API", () => {
         await User.deleteMany({});
         await Dog.deleteMany({});
 
-        // create owner user
+        // register ownerUser
         await chai
             .request(app)
             .post("/api/auth/register")
             .send({ username: "ownerUser", password: "password123" });
 
-        // create adopter user
+        // register adopterUser
         await chai
             .request(app)
             .post("/api/auth/register")
             .send({ username: "adopterUser", password: "password123" });
 
-        // login owner
+        // login ownerUser
         const ownerRes = await chai
             .request(app)
             .post("/api/auth/login")
@@ -39,7 +39,7 @@ describe("Dog API", () => {
 
         ownerToken = ownerRes.body.token;
 
-        // login adopter
+        // login adopterUser
         const adopterRes = await chai
             .request(app)
             .post("/api/auth/login")
@@ -67,7 +67,6 @@ describe("Dog API", () => {
         expect(res).to.have.status(201);
         expect(res.body).to.have.property("_id");
         expect(res.body).to.have.property("status", "available");
-
         dogId = res.body._id;
     });
 
@@ -94,7 +93,10 @@ describe("Dog API", () => {
 
         expect(res).to.have.status(200);
         expect(res.body).to.have.property("status", "adopted");
-        expect(res.body).to.have.property("adoptionMessage", "Thank you for sharing Rex!");
+        expect(res.body).to.have.property(
+            "adoptionMessage",
+            "Thank you for sharing Rex!"
+        );
     });
 
     it("should prevent adopting an already adopted dog", async () => {

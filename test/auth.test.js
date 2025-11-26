@@ -10,10 +10,12 @@ const expect = chai.expect;
 chai.use(chaiHttp);
 
 describe("Auth API", () => {
+    // Clean users before tests
     before(async () => {
         await User.deleteMany({});
     });
 
+    // Close DB connection after all tests
     after(async () => {
         await mongoose.connection.close();
     });
@@ -25,6 +27,7 @@ describe("Auth API", () => {
             .send({ username: "testuser", password: "password123" })
             .end((err, res) => {
                 expect(res).to.have.status(201);
+                expect(res.body).to.have.property("message", "User registered successfully");
                 done();
             });
     });
