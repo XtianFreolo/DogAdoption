@@ -1,39 +1,35 @@
-
 const mongoose = require("mongoose");
-
-// Dogs
-class DogClass {
-
-    isPuppy() {
-        return this.age < 1;
-    }
-
-
-    getInfo() {
-        return `${this.name} is a ${this.breed}, age ${this.age}`;
-    }
-
-
-    canAdopt() {
-        return this.isAvailable;
-    }
-}
-
 
 const DogSchema = new mongoose.Schema(
     {
         name: { type: String, required: true },
-        breed: { type: String, required: true },
-        age: { type: Number, required: true },
-        description: { type: String },
+        breed: { type: String },
+        age: { type: Number },
+        description: { type: String, required: true },
         imageUrl: { type: String },
-        isAvailable: { type: Boolean, default: true },
+
+
+        status: {
+            type: String,
+            enum: ["available", "adopted"],
+            default: "available",
+        },
+        owner: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+        },
+        adoptedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+        },
+        adoptionMessage: {
+            type: String,
+            default: null,
+        },
     },
     { timestamps: true }
 );
-
-
-DogSchema.loadClass(DogClass);
-
 
 module.exports = mongoose.model("Dog", DogSchema);
