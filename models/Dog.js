@@ -8,22 +8,28 @@ const DogSchema = new mongoose.Schema(
         description: { type: String, required: true },
         imageUrl: { type: String },
 
-
+        // "available" or "adopted"
         status: {
             type: String,
             enum: ["available", "adopted"],
             default: "available",
         },
+
+        // Who registered the dog
         owner: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             required: true,
         },
+
+        // Who adopted the dog (if any)
         adoptedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             default: null,
         },
+
+        // Thank-you / adoption message
         adoptionMessage: {
             type: String,
             default: null,

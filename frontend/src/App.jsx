@@ -190,6 +190,7 @@ function DogDashboard({ API_BASE, token, username, onLogout }) {
   const [breed, setBreed] = useState("");
   const [age, setAge] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [dogMessage, setDogMessage] = useState("");
 
   const [adoptDogId, setAdoptDogId] = useState("");
@@ -201,6 +202,10 @@ function DogDashboard({ API_BASE, token, username, onLogout }) {
   const [adoptedDogs, setAdoptedDogs] = useState([]);
   const [loadingRegistered, setLoadingRegistered] = useState(false);
   const [loadingAdopted, setLoadingAdopted] = useState(false);
+
+  const [allDogs, setAllDogs] = useState([]);
+  const [allStatusFilter, setAllStatusFilter] = useState("");
+  const [loadingAllDogs, setLoadingAllDogs] = useState(false);
 
   const headers = {
     "Content-Type": "application/json",
@@ -255,9 +260,36 @@ function DogDashboard({ API_BASE, token, username, onLogout }) {
     }
   };
 
+  const loadAllDogs = async () => {
+    setLoadingAllDogs(true);
+    setAllDogs([]);
+    const params = new URLSearchParams();
+    if (allStatusFilter) params.set("status", allStatusFilter);
+    params.set("page", "1");
+    params.set("limit", "20");
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/dogs?${params.toString()}`,
+        { headers }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setDogMessage(data.message || "Failed to load all dogs");
+      } else {
+        setAllDogs(data.data || []);
+      }
+    } catch (err) {
+      setDogMessage("Error connecting to server while loading all dogs.");
+    } finally {
+      setLoadingAllDogs(false);
+    }
+  };
+
   useEffect(() => {
     loadRegisteredDogs();
     loadAdoptedDogs();
+    loadAllDogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -274,6 +306,7 @@ function DogDashboard({ API_BASE, token, username, onLogout }) {
           breed,
           age: age ? Number(age) : undefined,
           description,
+          imageUrl: imageUrl || undefined,
         }),
       });
       const data = await res.json();
@@ -285,7 +318,9 @@ function DogDashboard({ API_BASE, token, username, onLogout }) {
         setBreed("");
         setAge("");
         setDescription("");
+        setImageUrl("");
         loadRegisteredDogs();
+        loadAllDogs();
       }
     } catch (err) {
       setDogMessage("Error connecting to server while registering dog.");
@@ -316,11 +351,63 @@ function DogDashboard({ API_BASE, token, username, onLogout }) {
         setAdoptMessage("");
         loadRegisteredDogs();
         loadAdoptedDogs();
+        loadAllDogs();
       }
     } catch (err) {
       setAdoptStatus("Error connecting to server while adopting dog.");
     }
   };
+
+  const handleAdoptFromList = async (id) => {
+    setAdoptStatus("");
+    try {
+      const res = await fetch(`${API_BASE}/api/dogs/${id}/adopt`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ message: "" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAdoptStatus(data.message || "Failed to adopt dog");
+      } else {
+        setAdoptStatus(`You adopted "${data.name}"!`);
+        loadRegisteredDogs();
+        loadAdoptedDogs();
+        loadAllDogs();
+      }
+    } catch (err) {
+      setAdoptStatus("Error connecting to server while adopting dog.");
+    }
+  };
+
+
+  const handleCancelAdoption = async (id) => {
+    setAdoptStatus("");
+
+    try {
+      const res = await fetch(`${API_BASE}/api/dogs/${id}/cancel-adoption`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({}), // body isn't required, but it's fine
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAdoptStatus(data.message || "Failed to cancel adoption");
+      } else {
+        setAdoptStatus(`You cancelled your adoption of "${data.name}".`);
+        loadRegisteredDogs();
+        loadAdoptedDogs();
+        loadAllDogs();
+      }
+    } catch (err) {
+      setAdoptStatus(
+        "Error connecting to server while canceling adoption."
+      );
+    }
+  };
+
 
   const handleRemoveDog = async (id) => {
     const confirmRemove = window.confirm("Remove this dog?");
@@ -334,6 +421,7 @@ function DogDashboard({ API_BASE, token, username, onLogout }) {
 
       if (res.status === 204) {
         loadRegisteredDogs();
+        loadAllDogs();
       } else {
         const data = await res.json();
         alert(data.message || "Failed to remove dog");
@@ -395,6 +483,14 @@ function DogDashboard({ API_BASE, token, username, onLogout }) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 required
+              />
+            </label>
+            <label>
+              Image URL
+              <input
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://example.com/dog.jpg"
               />
             </label>
             <button type="submit">Add Dog</button>
@@ -491,18 +587,83 @@ function DogDashboard({ API_BASE, token, username, onLogout }) {
             ) : (
               adoptedDogs.map((dog) => (
                 <li key={dog._id}>
-                  <strong>{dog.name}</strong> ({dog.status}) <br />
-                  ID: <code>{dog._id}</code>
-                  <br />
-                  Message: {dog.adoptionMessage || "—"}
+                  <div>
+                    <strong>{dog.name}</strong> ({dog.status}) <br />
+                    ID: <code>{dog._id}</code>
+                    <br />
+                    Message: {dog.adoptionMessage || "—"}
+                  </div>
+                  <div className="actions">
+                    {dog.status === "adopted" && (
+                      <button onClick={() => handleCancelAdoption(dog._id)}>
+                        Cancel adoption
+                      </button>
+                    )}
+                  </div>
                 </li>
               ))
             )}
           </ul>
+
         </div>
+      </div>
+
+      <hr />
+
+      <div>
+        <h3>All Dogs on the Platform</h3>
+        <div className="filters">
+          <label>
+            Status
+            <select
+              value={allStatusFilter}
+              onChange={(e) => setAllStatusFilter(e.target.value)}
+            >
+              <option value="">All</option>
+              <option value="available">Available</option>
+              <option value="adopted">Adopted</option>
+            </select>
+          </label>
+          <button onClick={loadAllDogs} disabled={loadingAllDogs}>
+            {loadingAllDogs ? "Loading..." : "Refresh"}
+          </button>
+        </div>
+        <ul className="list">
+          {allDogs.length === 0 ? (
+            <li>No dogs found.</li>
+          ) : (
+            allDogs.map((dog) => (
+              <li key={dog._id}>
+                <div className="dog-card">
+                  {dog.imageUrl && (
+                    <img
+                      src={dog.imageUrl}
+                      alt={dog.name}
+                      className="dog-image"
+                    />
+                  )}
+                  <div>
+                    <strong>{dog.name}</strong> ({dog.status}) <br />
+                    ID: <code>{dog._id}</code>
+                    <br />
+                    {dog.description}
+                  </div>
+                </div>
+                <div className="actions">
+                  {dog.status === "available" && (
+                    <button onClick={() => handleAdoptFromList(dog._id)}>
+                      Adopt
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))
+          )}
+        </ul>
       </div>
     </section>
   );
 }
+
 
 export default App;
